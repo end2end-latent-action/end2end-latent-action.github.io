@@ -1,0 +1,191 @@
+:root {
+  --ink: #1b1b1b;
+  --muted: #5d6066;
+  --rule: #e6e6e6;
+  --bg: #ffffff;
+  --soft: #f6f6f4;
+  --accent: #1f5fbf;
+  --ours: #fff4cf;          /* matches the gold used for ELA in the figures */
+  --brand: #e0a800;         /* accent for small marks: TL;DR rule, TOC marker */
+  --band: #f5f2ea;          /* hero background */
+  --text-w: 720px;
+  --gutter: 20px;
+}
+
+* { box-sizing: border-box; }
+
+html { scroll-behavior: smooth; -webkit-text-size-adjust: 100%; }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font: 18.5px/1.6 var(--serif);
+  font-optical-sizing: auto;
+}
+
+/* Serif for reading text; sans for interface elements */
+:root {
+  --serif: "Source Serif 4", "Source Serif Pro", Georgia, "Times New Roman", serif;
+  --sans: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+.btn, .toc, table, caption, .note, .copy { font-family: var(--sans); }
+
+main { padding: 0 var(--gutter); }
+
+/* One shared column for text and figures */
+main > *, section > * { max-width: var(--text-w); margin-left: auto; margin-right: auto; }
+main > section { max-width: none; }
+section > .narrow { max-width: 460px; }
+
+a { color: var(--accent); text-decoration-thickness: 1px; text-underline-offset: 2px; }
+img, video { display: block; max-width: 100%; height: auto; }
+sub, sup { line-height: 0; }
+
+/* ---------- Hero ---------- */
+.hero { text-align: center; }
+main > .hero {
+  max-width: none;
+  margin: 0 calc(-1 * var(--gutter));
+  padding: 64px var(--gutter) 40px;
+  background: var(--band);
+}
+.hero > * { max-width: var(--text-w); margin-left: auto; margin-right: auto; }
+.hero h1 {
+  font-size: clamp(1.7rem, 4.2vw, 2.6rem);
+  line-height: 1.2;
+  letter-spacing: -0.01em;
+  font-weight: 600;
+  margin: 0 auto 20px;
+  max-width: 860px;
+}
+.authors, .affiliations { display: flex; flex-wrap: wrap; justify-content: center; gap: 4px 18px; margin: 0 auto; }
+.authors { font-size: 1.2rem; }
+.affiliations { font-size: 0.92rem; color: var(--muted); margin-top: 4px; }
+.venue { font-family: var(--sans); font-weight: 500; font-size: 0.95rem; letter-spacing: 0.04em; color: var(--muted); margin: 10px auto 0; }
+
+.links { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; margin: 22px auto 28px; }
+.btn {
+  display: inline-block;
+  padding: 8px 18px;
+  border-radius: 999px;
+  background: var(--ink);
+  color: #fff;
+  font-size: 0.95rem;
+  font-weight: 500;
+  text-decoration: none;
+}
+.btn:hover { background: #3a3a3a; }
+.btn[aria-disabled="true"] { background: #c9c9c9; pointer-events: none; }
+
+.tldr {
+  text-align: left;
+  background: #fff;
+  border-left: 3px solid var(--brand);
+  padding: 14px 18px;
+  border-radius: 0 6px 6px 0;
+  font-size: 1.1rem;
+  margin-top: 0;
+  margin-bottom: 0;
+}
+.tldr strong { font-family: var(--sans); font-weight: 600; font-size: 0.78em; letter-spacing: 0.06em; color: #a87b00; margin-right: 8px; }
+
+/* Figure 1 comparison boxes, aligned under the two halves of the teaser (as in the paper) */
+.teaser-compare { display: grid; grid-template-columns: 40fr 60fr; gap: 10px; margin-top: 12px; text-align: left; }
+.tc { border-radius: 8px; padding: 12px 14px 4px; }
+.tc-bc { background: #eceef1; }
+.tc-ela { background: #f5ebe0; }
+.tc ul { list-style: none; margin: 0; padding: 0; }
+.tc li { position: relative; padding-left: 22px; margin-bottom: 10px; font-size: 0.98rem; line-height: 1.4; }
+.tc li::before { position: absolute; left: 0; top: 0; font-family: var(--sans); font-weight: 700; }
+.tc li.yes::before { content: "✓"; color: #2a9d5c; }
+.tc li.no::before { content: "✗"; color: #e5484d; }
+.tc li b { font-weight: 600; }
+.tc li.yes b { color: #1f5fbf; }
+.tc li.no b { color: #e5484d; }
+.tc li span { display: block; font-size: 0.86rem; color: var(--muted); margin-top: 2px; }
+
+/* ---------- Sections ---------- */
+section { padding-top: 40px; scroll-margin-top: 12px; }
+section + section { margin-top: 32px; padding-top: 0; }
+section + section::before { content: ""; display: block; max-width: var(--text-w); margin: 0 auto 40px; border-top: 1px solid var(--rule); }
+h2 { font-size: 1.75rem; font-weight: 600; line-height: 1.25; letter-spacing: 0; margin: 0 auto 16px; }
+h3 { font-family: var(--sans); font-size: 1.02rem; font-weight: 600; letter-spacing: 0.01em; margin: 36px auto 6px; }
+p { margin: 0 auto 14px; }
+
+.defs { margin: 6px auto 18px; }
+.defs div { display: flex; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--rule); }
+.defs div:first-child { border-top: 1px solid var(--rule); }
+.defs dt { font-style: italic; font-weight: 600; min-width: 120px; }
+.defs dd { margin: 0; }
+
+/* ---------- Figures ---------- */
+figure { margin: 28px auto 28px; }
+figure img, figure video { margin: 0 auto; }
+figcaption { font-size: 0.95rem; color: var(--muted); line-height: 1.5; margin-top: 10px; max-width: var(--text-w); margin-left: auto; margin-right: auto; }
+/* "Figure N." / "Table N." labels */
+figcaption > b:first-child, caption > b:first-child { font-family: var(--sans); font-weight: 600; font-size: 0.88em; color: var(--ink); margin-right: 2px; }
+video { background: #fff; width: 100%; }
+
+/* Table + bar chart side by side */
+.split { display: grid; grid-template-columns: 1.3fr 1fr; gap: 32px; align-items: center; margin: 20px auto 24px; }
+.split figure { margin: 0; }
+.split figure img { max-width: 360px; width: 100%; }
+.table-wrap { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; font-size: 0.93rem; font-variant-numeric: tabular-nums; }
+caption { caption-side: top; text-align: left; font-size: 0.88rem; color: var(--muted); padding-bottom: 6px; }
+th, td { padding: 7px 10px; border-bottom: 1px solid var(--rule); text-align: left; }
+thead th { border-bottom: 1.5px solid var(--ink); font-weight: 600; }
+.num { text-align: right; }
+tr.ours td { background: var(--ours); }
+.note { font-size: 0.85rem; color: var(--muted); margin-top: 8px; }
+
+/* Lists */
+section ul, section ol { padding-left: 1.3em; }
+section li { margin-bottom: 6px; }
+
+/* ---------- Citation ---------- */
+.bibtex { position: relative; }
+.bibtex pre {
+  background: var(--soft); border-radius: 8px; padding: 16px 18px; margin: 0;
+  overflow-x: auto; font-size: 0.82rem; line-height: 1.55;
+}
+.copy {
+  position: absolute; top: 8px; right: 8px;
+  font: inherit; font-size: 0.8rem; padding: 4px 10px;
+  border: 1px solid var(--rule); background: #fff; border-radius: 6px; cursor: pointer;
+}
+
+footer { color: var(--muted); font-size: 0.82rem; text-align: center; padding: 48px var(--gutter) 40px; }
+
+/* ---------- Table of contents (wide screens only) ---------- */
+.toc { display: none; }
+@media (min-width: 1360px) {
+  .toc {
+    display: block; position: fixed; top: 96px; left: max(24px, calc(50% - 680px));
+    width: 170px; font-size: 0.85rem;
+  }
+  .toc ol { list-style: none; margin: 0; padding: 0; border-left: 1px solid var(--rule); }
+  .toc a { display: block; padding: 4px 0 4px 14px; color: var(--muted); text-decoration: none; margin-left: -1px; border-left: 2px solid transparent; }
+  .toc a:hover { color: var(--ink); }
+  .toc a.active { color: var(--ink); border-left-color: var(--brand); font-weight: 500; }
+}
+
+/* ---------- Phone ---------- */
+@media (max-width: 640px) {
+  :root { --gutter: 16px; }
+  body { font-size: 17.5px; }
+  main > .hero { padding-top: 36px; padding-bottom: 28px; }
+  .links { margin: 18px auto 22px; }
+  .btn { padding: 7px 15px; font-size: 0.9rem; }
+  .teaser-compare { grid-template-columns: 1fr; }
+  .defs div { flex-direction: column; gap: 0; }
+  h2 { font-size: 1.5rem; }
+  section { padding-top: 28px; }
+  section + section { margin-top: 24px; }
+  section + section::before { margin-bottom: 28px; }
+  figure { margin: 20px auto; }
+  .split { grid-template-columns: 1fr; gap: 20px; }
+  .split figure img { max-width: 300px; }
+}

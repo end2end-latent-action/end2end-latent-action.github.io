@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ELA: End-to-End Latent Action Policy Learning from Video Demonstrations</title>
+  <meta name="description" content="ELA learns robot policies from abundant action-free video plus a handful of action-labeled demonstrations, using latent actions trained end-to-end to be both modelable and decodable.">
+
+  <!-- Link previews (X / Twitter, Slack, etc.) -->
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://end2end-latent-action.github.io/">
+  <meta property="og:title" content="ELA: End-to-End Latent Action Policy Learning from Video Demonstrations">
+  <meta property="og:description" content="Learning robot policies from action-free video with latent actions that are both modelable and decodable.">
+  <meta property="og:image" content="https://end2end-latent-action.github.io/assets/images/preview.png">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:image" content="https://end2end-latent-action.github.io/assets/images/preview.png">
+
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-7GF0RHBSDK"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-7GF0RHBSDK');
+  </script>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;0,8..60,700;1,8..60,400&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="assets/css/style.css">
+  <link rel="stylesheet" href="assets/css/joint-diagram.css">
+  <script defer src="assets/js/main.js"></script>
+  <script defer src="assets/js/joint-diagram.js"></script>
+</head>
+<body>
+
+<nav class="toc" aria-label="Contents">
+  <ol>
+    <li><a href="#top">Overview</a></li>
+    <li><a href="#motivation">Motivation</a></li>
+    <li><a href="#method">Method</a></li>
+    <li><a href="#real-world">Real-world results</a></li>
+    <li><a href="#simulation">Simulation</a></li>
+    <li><a href="#limitations">Limitations</a></li>
+    <li><a href="#citation">Citation</a></li>
+  </ol>
+</nav>
+
+<main>
+
+  <!-- ============ Hero ============ -->
+  <header class="hero" id="top">
+    <h1>ELA: End-to-End Latent Action Policy Learning from Video&nbsp;Demonstrations</h1>
+
+    <!-- TODO: authors / affiliations -->
+    <p class="authors">
+      <span>Cheng-Chun Hsu</span>
+      <span>Peter Stone</span>
+    </p>
+    <p class="affiliations">
+      <span>University of Texas at Austin</span>
+    </p>
+    <p class="venue">CoRL 2026</p>
+
+    <!-- TODO: links -->
+    <div class="links">
+      <a class="btn" href="#" aria-disabled="true">Paper</a>
+      <a class="btn" href="#" aria-disabled="true">arXiv</a>
+      <a class="btn" href="#" aria-disabled="true">Code</a>
+      <a class="btn" href="#citation">BibTeX</a>
+    </div>
+
+    <p class="tldr">
+      <strong>TL;DR</strong> ELA learns robot policies from abundant action-free video plus only a handful of action-labeled demonstrations. It trains latent actions end-to-end so they are both <em>modelable</em> (easy for a policy to predict) and <em>decodable</em> (easy to map back to robot actions).
+    </p>
+  </header>
+
+  <figure id="fig-teaser">
+    <img src="assets/images/teaser.png" width="2400" height="862"
+         alt="Left: standard behavior cloning trains a policy on action-labeled demonstrations only; video demonstrations provide no supervision. Right: ELA has the policy predict latent actions, supervised on both action-labeled and video demonstrations, and an action decoder maps them to robot actions.">
+    <div class="teaser-compare">
+      <div class="tc tc-bc">
+        <ul>
+          <li class="no"><b>Cannot</b> leverage action-free data
+            <span>Video demonstrations get no supervision and are left unused.</span></li>
+        </ul>
+      </div>
+      <div class="tc tc-ela">
+        <ul>
+          <li class="yes">Learns from <b>both action-free and action-labeled</b> demonstrations
+            <span>Latent actions let video demonstrations, including human videos, supervise the policy.</span></li>
+          <li class="yes">Compatible with <b>existing policy architectures and objectives</b>
+            <span>The policy predicts latent actions instead of robot actions. We apply ELA to both Diffusion Policy and UWM.</span></li>
+          <li class="yes">Adds only a <b>lightweight Action Decoder</b> (4M model parameters)
+            <span>It is the only module ELA adds at test time.</span></li>
+        </ul>
+      </div>
+    </div>
+    <figcaption><b>Figure 1.</b> ELA overview. ELA extends existing behavior cloning methods, <i>e.g.</i>, diffusion policies, with latent actions jointly optimized for policy learning and action decoding. The approach enables training on mixtures of action-labeled and video demonstrations with little overhead, requiring only a lightweight Action Decoder.</figcaption>
+  </figure>
+
+  <!-- ============ Motivation ============ -->
+  <section id="motivation">
+    <h2>Why latent actions fall short today</h2>
+    <p>
+      Robot action labels are expensive to collect, while video demonstrations, including human videos and unlabeled robot trajectories, are far easier to obtain at scale. <em>Latent action modeling</em> turns video into policy supervision: an inverse dynamics model (IDM) infers a latent action from a pair of frames, and a policy learns to predict it.
+    </p>
+    <p>
+      Existing methods, however, follow a <em>two-stage pipeline</em>. Latent actions are learned first, then frozen as targets for a downstream policy. Nothing shapes the latent space for control, so the latents can end up hard to predict, hard to decode, or both.
+    </p>
+    <p>We identify two properties a latent action space needs for effective policy learning:</p>
+    <dl class="defs">
+      <div><dt>Modelability</dt><dd>latent actions can be reliably inferred from observations by a policy.</dd></div>
+      <div><dt>Decodability</dt><dd>latent actions can be faithfully mapped into executable continuous robot actions.</dd></div>
+    </dl>
+
+    <figure class="narrow" id="fig-scatter">
+      <img src="assets/images/scatter.png" width="1159" height="1132" loading="lazy"
+           alt="Scatter plot of modelability (x-axis) versus decodability (y-axis), lower is better on both. UniVLA, LAPA, LAPA-DINO and Villa-X sit in the upper region; ELA-DP without alignment is decodable but less modelable; full ELA-DP is in the lower-left corner.">
+      <figcaption><b>Figure 2.</b> Modelability vs. decodability of each latent action space. Both axes are action MSE on 20 held-out real-world robot demonstrations (lower is better). <i>Decodability</i> (MSE<sub>idm</sub>) measures how well actions decode from latents the IDM extracts from frame transitions. <i>Modelability</i> (MSE<sub>dp</sub>) measures the error when those latents are instead predicted by a diffusion policy from observations. Latent action models trained without an action decoder (UniVLA, LAPA, LAPA-DINO) are weak on both axes. ELA<sub>DP</sub> (w/o align) is decodable but less modelable. Full ELA<sub>DP</sub> is best on both.</figcaption>
+    </figure>
+  </section>
+
+  <!-- ============ Method ============ -->
+  <section id="method">
+    <h2>Method</h2>
+
+    <h3>Policy learning through latent actions</h3>
+    <p>
+      ELA splits a behavior cloning policy into two parts: a <em>Latent Action Policy</em> π that predicts a latent action <i>z</i> from the current observation, and an <em>Action Decoder</em> ψ that maps <i>z</i> to a <i>k</i>-step chunk of robot actions.
+    </p>
+    <p>
+      The latent actions come from a Latent Action Model (LAM), made of an inverse dynamics model (IDM) that infers <i>z<sub>t</sub></i> from an observation pair (<i>o<sub>t</sub></i>, <i>o<sub>t+k</sub></i>) and a forward dynamics model (FDM) that reconstructs <i>o<sub>t+k</sub></i> from <i>o<sub>t</sub></i> and <i>z<sub>t</sub></i>.
+    </p>
+
+    <figure id="fig-method">
+      <video class="autoplay" muted loop playsinline preload="none"
+             width="1920" height="1036" poster="assets/videos/training_deployment.jpg"
+             data-src="assets/videos/training_deployment.mp4"
+             aria-label="Animation of ELA training and deployment"></video>
+      <figcaption><b>Figure 3.</b> ELA training and deployment. During training, the IDM infers latent actions from image pairs. These latents supervise the FDM (future-frame reconstruction), the Action Decoder (robot-action prediction), and the Latent Action Policy. During deployment, the policy predicts latent actions from observations and the Action Decoder executes them.</figcaption>
+    </figure>
+
+    <p>
+      Because the IDM can label any video, the policy trains on both action-free and action-labeled data. Only the Action Decoder needs action labels.
+    </p>
+
+    <h3>End-to-end joint training</h3>
+    <p>
+      Training the LAM, policy, and Action Decoder in a single combined objective causes <em>latent action collapse</em>: policy gradients push the latent space toward whatever is easiest to predict, even when that hurts decoding. ELA avoids this with two ideas.
+    </p>
+    <ol>
+      <li><em>Representation alignment.</em> Instead of sending policy gradients into the LAM, ELA aligns both the LAM and the policy to a shared reference representation from a frozen perceptual encoder (DINOv3).</li>
+      <li><em>Two alternating passes</em> that improve modelability from complementary directions.</li>
+    </ol>
+
+    <figure id="fig-joint">
+      <div class="jd">
+        <!-- Shared markers and icons for both pass diagrams -->
+        <svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+          <defs>
+            <marker id="jd-arrow" viewBox="0 0 8 8" refX="8" refY="4" markerWidth="7" markerHeight="7" markerUnits="userSpaceOnUse" orient="auto">
+              <path d="M0 0L8 4L0 8z" fill="#1b1b1b"/>
+            </marker>
+            <marker id="jd-arrow-grad" viewBox="0 0 8 8" refX="5" refY="4" markerWidth="12" markerHeight="12" markerUnits="userSpaceOnUse" orient="auto">
+              <path d="M0 0L8 4L0 8z" fill="#8b7cf6"/>
+            </marker>
+            <marker id="jd-arrow-grad-sm" viewBox="0 0 8 8" refX="5" refY="4" markerWidth="8" markerHeight="8" markerUnits="userSpaceOnUse" orient="auto">
+              <path d="M0 0L8 4L0 8z" fill="#8b7cf6"/>
+            </marker>
+            <symbol id="jd-fire" viewBox="0 0 16 16">
+              <path d="M8 .8c.4 2.4 4.6 4.3 4.6 8.6a4.6 4.6 0 0 1-9.2 0c0-2 1-3.4 2.1-4.3-.1 1.4.5 2.5 1.5 3C6.7 6 6.9 3 8 .8z" fill="#f26b1d"/>
+              <path d="M8.2 7.4c.2 1.3 2.3 2.2 2.3 4.2a2.5 2.5 0 0 1-5 0c0-1 .5-1.8 1.1-2.3 0 .8.4 1.2.9 1.4-.2-1.2 0-2.3.7-3.3z" fill="#ffc23d"/>
+            </symbol>
+            <symbol id="jd-snow" viewBox="0 0 16 16">
+              <g fill="none" stroke="#2b8ce6" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M8 1v14M1.9 4.5l12.2 7M1.9 11.5l12.2-7"/>
+                <path d="M6.2 2.4L8 4l1.8-1.6M6.2 13.6L8 12l1.8 1.6"/>
+              </g>
+            </symbol>
+          </defs>
+        </svg>
+
+        <div class="jd-bar">
+          <div class="jd-switch" role="group" aria-label="Play pass">
+            <button type="button" aria-pressed="true">LAM-update pass</button>
+            <button type="button" aria-pressed="false">Policy-update pass</button>
+          </div>
+          <button type="button" class="jd-toggle" aria-label="Pause animation">
+            <svg class="i-pause" viewBox="0 0 10 10" aria-hidden="true"><path d="M1 0h3v10H1zM6 0h3v10H6z"/></svg>
+            <svg class="i-play" viewBox="0 0 10 10" aria-hidden="true"><path d="M1 0l9 5-9 5z"/></svg>
+            <span class="label">Pause</span>
+          </button>
+        </div>
+
+        <div class="jd-panels" role="img"
+             aria-label="ELA alternates two training passes over the same modules. In both, RGB Observations go through a frozen Perceptual Encoder to give a Reference Representation, and through the Latent Action Model to give Latent Actions, which feed the Latent Action Policy; the policy outputs a Policy Feature and predicted Latent Actions. LAM-update pass: the policy is frozen; the Latent Action Model and Action Decoder are trained with three losses: L-align (Policy Feature versus Reference Representation), L-fdm (future-frame reconstruction), and L-act (Robot Actions from the Action Decoder versus ground truth). Gradients flow back through the frozen policy to the Latent Action Model, reshaping latent actions to be easier for the policy to predict. Policy-update pass: the Latent Action Model is frozen; the Latent Action Policy is trained with L-align and L-policy (predicted versus Latent Action Model latent actions), improving its ability to predict them.">
+
+          <!-- ===================== LAM-update pass ===================== -->
+          <div class="jd-pass" id="lam-pass">
+            <div class="jd-head">
+              <span class="jd-name">LAM-update pass</span>
+              <span class="jd-sub">Update Latent Action Model and Action Decoder</span>
+            </div>
+            <svg viewBox="0 0 400 384" aria-hidden="true" focusable="false">
+              <g class="grad"><!-- gradient flow (purple), drawn behind nodes -->
+                <path class="grad-align" d="M350 186V230H150V102" marker-end="url(#jd-arrow-grad)"/>
+                <path class="grad-act" d="M318 374V379H150V102" marker-end="url(#jd-arrow-grad)"/>
+                <path class="grad-fdm minor" d="M66 87H78" marker-end="url(#jd-arrow-grad-sm)"/>
+              </g>
+              <g class="pulses"></g>
+              <g class="flow"><!-- training flow; data-t = start (s), data-d = duration (s) -->
+                <path d="M162 36V56" data-t="0" marker-end="url(#jd-arrow)"/>
+                <path d="M333 36V56" data-t="0" marker-end="url(#jd-arrow)"/>
+                <path d="M258 36V180H244" data-t="0" data-d="0.7" marker-end="url(#jd-arrow)"/>
+                <path d="M162 100V122" data-t="0.3" marker-end="url(#jd-arrow)"/>
+                <path d="M333 96V110" data-t="0.3" marker-end="url(#jd-arrow)"/>
+                <path d="M162 146V168" data-t="0.6" marker-end="url(#jd-arrow)"/>
+                <path d="M244 205H272" data-t="0.9" marker-end="url(#jd-arrow)"/>
+                <path d="M162 216V240" data-t="0.9" marker-end="url(#jd-arrow)"/>
+                <path d="M162 264V284" data-t="1.1" marker-end="url(#jd-arrow)"/>
+                <path d="M162 328V348" data-t="1.3" marker-end="url(#jd-arrow)"/>
+              </g>
+              <g class="dots"></g>
+              <g class="sup"><!-- loss supervision (dashed) -->
+                <path d="M66 78H80"/>
+                <path d="M333 148V160M333 198V186"/>
+                <path d="M228 360H300"/>
+              </g>
+
+              <g class="node input node-rgb"><rect x="80" y="8" width="314" height="28" rx="6"/><text x="237" y="22">RGB Observations</text></g>
+              <g class="node module node-lam is-trained">
+                <rect x="80" y="56" width="164" height="44"/>
+                <text x="162" y="70">Latent Action</text><text x="162" y="87">Model</text>
+                <use href="#jd-fire" x="224" y="81" width="15" height="15"/>
+              </g>
+              <g class="node module encoder node-encoder is-frozen">
+                <rect x="272" y="56" width="122" height="40"/>
+                <text x="327" y="68">Perceptual</text><text x="327" y="85">Encoder</text>
+                <use href="#jd-snow" x="375" y="77" width="15" height="15"/>
+              </g>
+              <g class="node latent node-latent"><rect x="96" y="122" width="132" height="24" rx="6"/><text x="162" y="134">Latent Actions</text></g>
+              <g class="node rep node-ref"><rect x="272" y="110" width="122" height="38" rx="6"/><text x="333" y="121">Reference</text><text x="333" y="137">Representation</text></g>
+              <g class="node module node-policy is-frozen">
+                <rect x="80" y="168" width="164" height="48"/>
+                <text x="162" y="184">Latent Action</text><text x="162" y="201">Policy</text>
+                <use href="#jd-snow" x="224" y="197" width="15" height="15"/>
+              </g>
+              <g class="node rep node-feature"><rect x="272" y="198" width="122" height="26" rx="6"/><text x="333" y="211">Policy Feature</text></g>
+              <g class="node latent node-latent-pred"><rect x="96" y="240" width="132" height="24" rx="6"/><text x="162" y="252">Latent Actions</text></g>
+              <g class="node module node-decoder is-trained">
+                <rect x="80" y="284" width="164" height="44"/>
+                <text x="156" y="306">Action Decoder</text>
+                <use href="#jd-fire" x="224" y="309" width="15" height="15"/>
+              </g>
+              <g class="node robot node-robot"><rect x="96" y="348" width="132" height="24" rx="6"/><text x="162" y="360">Robot Actions</text></g>
+
+              <g class="loss loss-fdm"><rect x="6" y="64" width="60" height="28" rx="6"/><text x="36" y="75">ℒ<tspan class="sub" dy="4">fdm</tspan></text></g>
+              <g class="loss loss-align"><rect x="303" y="160" width="60" height="26" rx="6"/><text x="333" y="170">ℒ<tspan class="sub" dy="4">align</tspan></text></g>
+              <g class="loss loss-act"><rect x="300" y="346" width="60" height="28" rx="6"/><text x="330" y="357">ℒ<tspan class="sub" dy="4">act</tspan></text></g>
+            </svg>
+          </div>
+
+          <!-- ===================== Policy-update pass ===================== -->
+          <div class="jd-pass" id="policy-pass">
+            <div class="jd-head">
+              <span class="jd-name">Policy-update pass</span>
+              <span class="jd-sub">Update Latent Action Policy</span>
+            </div>
+            <svg viewBox="0 0 400 384" aria-hidden="true" focusable="false">
+              <g class="grad">
+                <path class="grad-align" d="M350 186V230H222V219" marker-end="url(#jd-arrow-grad)"/>
+                <path class="grad-policy" d="M52 204V270H150V219" marker-end="url(#jd-arrow-grad)"/>
+              </g>
+              <g class="pulses"></g>
+              <g class="flow">
+                <path d="M162 36V56" data-t="0" marker-end="url(#jd-arrow)"/>
+                <path d="M333 36V56" data-t="0" marker-end="url(#jd-arrow)"/>
+                <path d="M258 36V180H244" data-t="0" data-d="0.7" marker-end="url(#jd-arrow)"/>
+                <path d="M162 100V122" data-t="0.3" marker-end="url(#jd-arrow)"/>
+                <path d="M333 96V110" data-t="0.3" marker-end="url(#jd-arrow)"/>
+                <path d="M162 146V168" data-t="0.6" marker-end="url(#jd-arrow)"/>
+                <path d="M244 205H272" data-t="0.9" marker-end="url(#jd-arrow)"/>
+                <path d="M162 216V240" data-t="0.9" marker-end="url(#jd-arrow)"/>
+              </g>
+              <g class="dots"></g>
+              <g class="sup">
+                <path d="M333 148V160M333 198V186"/>
+                <path d="M36 176V134H96M36 204V252H96"/>
+              </g>
+
+              <g class="node input node-rgb"><rect x="80" y="8" width="314" height="28" rx="6"/><text x="237" y="22">RGB Observations</text></g>
+              <g class="node module node-lam is-frozen">
+                <rect x="80" y="56" width="164" height="44"/>
+                <text x="162" y="70">Latent Action</text><text x="162" y="87">Model</text>
+                <use href="#jd-snow" x="224" y="81" width="15" height="15"/>
+              </g>
+              <g class="node module encoder node-encoder is-frozen">
+                <rect x="272" y="56" width="122" height="40"/>
+                <text x="327" y="68">Perceptual</text><text x="327" y="85">Encoder</text>
+                <use href="#jd-snow" x="375" y="77" width="15" height="15"/>
+              </g>
+              <g class="node latent node-latent"><rect x="96" y="122" width="132" height="24" rx="6"/><text x="162" y="134">Latent Actions</text></g>
+              <g class="node rep node-ref"><rect x="272" y="110" width="122" height="38" rx="6"/><text x="333" y="121">Reference</text><text x="333" y="137">Representation</text></g>
+              <g class="node module node-policy is-trained">
+                <rect x="80" y="168" width="164" height="48"/>
+                <text x="162" y="184">Latent Action</text><text x="162" y="201">Policy</text>
+                <use href="#jd-fire" x="224" y="197" width="15" height="15"/>
+              </g>
+              <g class="node rep node-feature"><rect x="272" y="198" width="122" height="26" rx="6"/><text x="333" y="211">Policy Feature</text></g>
+              <g class="node latent node-latent-pred"><rect x="96" y="240" width="132" height="24" rx="6"/><text x="162" y="252">Latent Actions</text></g>
+              <g class="ghost node-decoder-unused"><rect x="80" y="284" width="164" height="44"/><text x="162" y="306">Action Decoder not used</text></g>
+
+              <g class="loss loss-align"><rect x="303" y="160" width="60" height="26" rx="6"/><text x="333" y="170">ℒ<tspan class="sub" dy="4">align</tspan></text></g>
+              <g class="loss loss-policy"><rect x="6" y="176" width="60" height="28" rx="6"/><text x="36" y="187">ℒ<tspan class="sub" dy="4">policy</tspan></text></g>
+            </svg>
+          </div>
+        </div>
+
+        <ul class="jd-legend" aria-hidden="true">
+          <li><svg viewBox="0 0 28 12"><path d="M2 6H26" stroke="#1b1b1b" stroke-width="1.3" marker-end="url(#jd-arrow)"/></svg>Training flow</li>
+          <li><svg viewBox="0 0 28 12"><path d="M2 6H20" stroke="#8b7cf6" stroke-width="5" opacity=".7" marker-end="url(#jd-arrow-grad)"/></svg>Gradient flow</li>
+          <li><svg viewBox="0 0 28 12"><path d="M2 6H26" stroke="#1b1b1b" stroke-width="1.2" stroke-dasharray="4 3"/></svg>Loss supervision</li>
+          <li><svg class="icon" viewBox="0 0 16 16"><use href="#jd-fire"/></svg>Trained</li>
+          <li><svg class="icon" viewBox="0 0 16 16"><use href="#jd-snow"/></svg>Frozen</li>
+        </ul>
+      </div>
+      <figcaption><b>Figure 4.</b> End-to-end joint training. ELA alternates two passes over the same modules, coordinated through a shared Reference Representation from a frozen Perceptual Encoder. The LAM-update pass freezes the policy and reshapes latent actions so they are easier for the policy to predict; the Policy-update pass freezes the LAM and improves the policy's ability to predict them.</figcaption>
+    </figure>
+  </section>
+
+  <!-- ============ Real world ============ -->
+  <section id="real-world">
+    <h2>Real-world results: learning from human video</h2>
+    <p>
+      For each task, ELA uses 10 action-labeled robot demonstrations and 40 human video demonstrations. Tasks range from pick-and-place to articulated-object manipulation, and each is evaluated over 20 trials with randomized object positions.
+    </p>
+
+    <figure>
+      <video class="autoplay" muted loop playsinline preload="none"
+             width="1920" height="490" poster="assets/videos/real_robot_vs_human.jpg"
+             data-src="assets/videos/real_robot_vs_human.mp4"
+             aria-label="A robot demonstration and a human video demonstration of the same task"></video>
+      <figcaption><b>Figure 5.</b> Training data. A robot demonstration with action labels (left) and a human video demonstration without action labels (right) of the same task.</figcaption>
+    </figure>
+
+    <figure>
+      <video class="autoplay" muted loop playsinline preload="none"
+             width="1920" height="840" poster="assets/videos/real_tasks.jpg"
+             data-src="assets/videos/real_tasks.mp4"
+             aria-label="ELA rollouts on five real-world tasks"></video>
+      <figcaption><b>Figure 6.</b> Real-world tasks: stack-bowl, open-oven, pour-bowl, place-food, and place-food-cabinet.</figcaption>
+    </figure>
+
+    <h3>Comparison with latent action baselines</h3>
+    <p>
+      We compare against latent action models pre-trained on large-scale cross-embodiment data (LAPA, Villa-X, UniVLA), an in-domain variant (LAPA-DINO), and plain Diffusion Policy (DP).
+    </p>
+
+    <div class="split">
+      <div class="table-wrap">
+        <table>
+          <caption><b>Table 1.</b> IDM size and training budget.</caption>
+          <thead>
+            <tr><th>Method</th><th class="num">IDM params</th><th class="num">Training trajectories</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>LAPA</td><td class="num">206M</td><td class="num">1M+</td></tr>
+            <tr><td>Villa-X</td><td class="num">124M</td><td class="num">1M+</td></tr>
+            <tr><td>UniVLA</td><td class="num">34M<sup>†</sup></td><td class="num">1M+</td></tr>
+            <tr><td>LAPA-DINO</td><td class="num">102M<sup>†</sup></td><td class="num">250</td></tr>
+            <tr class="ours"><td>ELA<sub>DP</sub> (ours)</td><td class="num">6M</td><td class="num">250</td></tr>
+          </tbody>
+        </table>
+        <p class="note"><sup>†</sup> DINO encoder parameters excluded. The IDM is used only during training. At test time, ELA adds just the 4M-parameter Action Decoder.</p>
+      </div>
+      <figure id="fig-bar">
+        <img src="assets/images/success_rate_bar.png" width="419" height="432" loading="lazy"
+             alt="Bar chart of real-world success rate: UniVLA 0.08, LAPA 0.26, Villa-X 0.27, LAPA-DINO 0.33, DP 0.48, ELA-DP 0.70.">
+        <figcaption><b>Figure 7.</b> Real-world success rate, averaged over tasks.</figcaption>
+      </figure>
+    </div>
+
+    <p>
+      ELA<sub>DP</sub> reaches <b>0.70</b> success, against 0.48 for plain DP, the strongest baseline. The large pre-trained models do not turn their capacity into better downstream control, and LAPA-DINO trails both ELA<sub>DP</sub> and DP despite in-domain training. In the few-shot setting, the bottleneck is <b>not data scale or diversity but how the latent action space is learned</b>. <a href="#fig-scatter">Figure 2</a> shows why: the baselines' latents are hard to decode and hard to predict.
+    </p>
+  </section>
+
+  <!-- ============ Simulation ============ -->
+  <section id="simulation">
+    <h2>Simulation: few-shot learning on LIBERO-10</h2>
+    <p>
+      LIBERO-10 is the most challenging subset of LIBERO: 10 long-horizon tabletop manipulation tasks. Each task has 50 robot demonstrations, of which only <i>N</i> ∈ {5, 10, 20} are action-labeled and the rest are action-free. Results are averaged over 3 seeds. We apply ELA to two representative backbones, Diffusion Policy (DP) and Unified World Model (UWM), giving ELA<sub>DP</sub> and ELA<sub>UWM</sub>. We compare them with the video-based methods ATM and AMPLIFY, which require external point-tracking models. ELA needs no external models or preprocessing.
+    </p>
+
+    <figure id="fig-libero">
+      <img src="assets/images/libero.png" width="2322" height="923" loading="lazy"
+           alt="Grouped bar chart of LIBERO-10 success rates for N = 5, 10, and 20 labeled demonstrations, comparing ATM, AMPLIFY, DP, ELA-DP, UWM, and ELA-UWM, with dashed lines for DP and UWM trained on all 50 labeled demonstrations.">
+      <figcaption><b>Figure 8.</b> Few-shot policy learning on LIBERO-10. Success rate with <i>N</i> action-labeled demonstrations per task. Dashed lines show DP and UWM trained on all 50 action-labeled demonstrations (upper bound).</figcaption>
+    </figure>
+
+    <p>
+      ELA consistently improves both backbones by supervising them with latent actions inferred from <i>all</i> demonstrations. With only 5 labeled demonstrations, ELA raises UWM from <b>19% to 59%</b> and DP from <b>31% to 54%</b>. In the low-data regime (<i>N</i> = 5, 10), both ELA variants outperform ATM and AMPLIFY. UWM beats DP only when all 50 demonstrations are labeled. With scarce labels it falls behind, and ELA recovers its performance.
+    </p>
+  </section>
+
+  <!-- ============ Limitations ============ -->
+  <section id="limitations">
+    <h2>Limitations</h2>
+    <ul>
+      <li><em>Scale.</em> ELA has not yet been validated at large scale. Scaling to cross-embodiment datasets and more diverse scenarios is future work.</li>
+      <li><em>RGB-only input.</em> ELA operates on raw RGB pixels and does not use depth or 3D priors. Monocular depth models or 3D supervision could help.</li>
+      <li><em>Task scope.</em> Our evaluation excludes highly dexterous and precision-intensive manipulation.</li>
+    </ul>
+  </section>
+
+  <!-- ============ Citation ============ -->
+  <section id="citation">
+    <h2>Citation</h2>
+    <!-- TODO: BibTeX -->
+    <div class="bibtex">
+      <button class="copy" type="button">Copy</button>
+<pre><code>@inproceedings{ela2026,
+  title     = {ELA: End-to-End Latent Action Policy Learning from Video Demonstrations},
+  author    = {TODO},
+  booktitle = {Conference on Robot Learning (CoRL)},
+  year      = {2026}
+}</code></pre>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <p>Page layout written from scratch; original project page based on the <a href="https://github.com/nerfies/nerfies.github.io">Nerfies</a> template.</p>
+</footer>
+
+</body>
+</html>
