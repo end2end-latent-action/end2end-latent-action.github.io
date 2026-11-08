@@ -61,10 +61,9 @@
     </p>
     <p class="venue">CoRL 2026</p>
 
-    <!-- TODO: replace #top with the real Paper / arXiv / Code links -->
+    <!-- TODO: replace #top with the real Code link -->
     <div class="links">
-      <a class="btn" href="#top">Paper</a>
-      <a class="btn" href="#top">arXiv</a>
+      <a class="btn" href="https://arxiv.org/pdf/2611.05571" target="_blank" rel="noopener">Paper</a>
       <a class="btn" href="#top">Code</a>
       <a class="btn" href="#citation">BibTeX</a>
     </div>
@@ -79,12 +78,14 @@
          alt="Left: standard behavior cloning trains a policy on action-labeled demonstrations only; video demonstrations provide no supervision. Right: ELA has the policy predict latent actions, supervised on both action-labeled and video demonstrations, and an action decoder maps them to robot actions.">
     <div class="teaser-compare">
       <div class="tc tc-bc">
+        <p class="tc-title">Standard Behavior Cloning (BC)</p>
         <ul>
           <li class="no"><b>Cannot</b> leverage action-free data
             <span>Video demonstrations get no supervision and are left unused.</span></li>
         </ul>
       </div>
       <div class="tc tc-ela">
+        <p class="tc-title">ELA (our approach)</p>
         <ul>
           <li class="yes">Learns from <b>both action-free and action-labeled</b> demonstrations
             <span>Latent actions let video demonstrations, including human videos, supervise the policy.</span></li>
