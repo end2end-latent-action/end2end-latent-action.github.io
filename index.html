@@ -116,7 +116,7 @@
     <figure class="narrow" id="fig-scatter">
       <img src="assets/images/scatter.png" width="1159" height="1132" loading="lazy"
            alt="Scatter plot of modelability (x-axis) versus decodability (y-axis), lower is better on both. UniVLA, LAPA, LAPA-DINO and Villa-X sit in the upper region; ELA-DP without alignment is decodable but less modelable; full ELA-DP is in the lower-left corner.">
-      <figcaption><b>Figure 2.</b> Modelability vs. decodability of each latent action space. Both axes are action MSE on 20 held-out real-world robot demonstrations (lower is better). <i>Decodability</i> (MSE<sub>idm</sub>) measures how well actions decode from latents the IDM extracts from frame transitions. <i>Modelability</i> (MSE<sub>dp</sub>) measures the error when those latents are instead predicted by a diffusion policy from observations. Latent action models trained without an action decoder (UniVLA, LAPA, LAPA-DINO) are weak on both axes. ELA<sub>DP</sub> (w/o align) is decodable but less modelable. Full ELA<sub>DP</sub> is best on both.</figcaption>
+      <figcaption><b>Figure 2.</b> Modelability vs. decodability of each latent action space. Both axes are action MSE on 20 held-out real-world robot demonstrations (lower is better). <i>Decodability</i> (MSE<sub>idm</sub>) measures how well actions decode from latents the IDM extracts from frame transitions. <i>Modelability</i> (MSE<sub>dp</sub>) measures the error when those latents are instead predicted by a diffusion policy from observations. The two-stage baselines (UniVLA, LAPA, Villa-X, LAPA-DINO) are weak on both axes. ELA<sub>DP</sub> (w/o align) is decodable but less modelable. Full ELA<sub>DP</sub> is best on both.</figcaption>
     </figure>
   </section>
 
@@ -149,7 +149,7 @@
       Training the LAM, policy, and Action Decoder in a single combined objective causes <em>latent action collapse</em>: policy gradients push the latent space toward whatever is easiest to predict, even when that hurts decoding. ELA avoids this with two ideas.
     </p>
     <ol>
-      <li><em>Representation alignment.</em> Instead of sending policy gradients into the LAM, ELA aligns both the LAM and the policy to a shared reference representation from a frozen perceptual encoder (DINOv3).</li>
+      <li><em>Representation alignment.</em> Instead of sending policy gradients into the LAM, ELA aligns both the LAM (through the frozen policy) and the policy to a shared reference representation from a frozen perceptual encoder (DINOv3).</li>
       <li><em>Two alternating passes</em> that improve modelability from complementary directions.</li>
     </ol>
 
@@ -389,7 +389,7 @@
   <section id="simulation">
     <h2>Simulation: few-shot learning on LIBERO-10</h2>
     <p>
-      LIBERO-10 is the most challenging subset of LIBERO: 10 long-horizon tabletop manipulation tasks. Each task has 50 robot demonstrations, of which only <i>N</i> ∈ {5, 10, 20} are action-labeled and the rest are action-free. Results are averaged over 3 seeds. We apply ELA to two representative backbones, Diffusion Policy (DP) and Unified World Model (UWM), giving ELA<sub>DP</sub> and ELA<sub>UWM</sub>. We compare them with the video-based methods ATM and AMPLIFY, which require external point-tracking models. ELA needs no external models or preprocessing.
+      LIBERO-10 is the most challenging subset of LIBERO: 10 long-horizon tabletop manipulation tasks. Each task has 50 robot demonstrations, of which only <i>N</i> ∈ {5, 10, 20} are action-labeled and the rest are action-free. Results are averaged over 3 seeds. We apply ELA to two representative backbones, Diffusion Policy (DP) and Unified World Model (UWM), giving ELA<sub>DP</sub> and ELA<sub>UWM</sub>. The DP baseline trains only on the <i>N</i> labeled demonstrations; the UWM baseline also co-trains on the action-free ones. We compare them with the video-based methods ATM and AMPLIFY, which require external point-tracking models. ELA needs no point tracker or other preprocessing.
     </p>
 
     <figure id="fig-libero">
